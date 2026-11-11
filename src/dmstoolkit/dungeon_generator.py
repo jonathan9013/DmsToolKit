@@ -5,22 +5,101 @@ from openpyxl.styles import PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
 from pathlib import Path
 
-def generateDungeon():
+def generate_dungeon():
     grid = np.zeros((5,5), dtype=object)
     cur_row_index = 2
     cur_col_index = 2
     grid[(cur_row_index,cur_col_index)]=1
     prev_direction = 0
+    prev_choice = "na"
     
-    while getgridsum(grid)<100:
-        
-        direction, length, width = generateHall(prev_direction)
-        grid, cur_row_index, cur_col_index = buildHall(length, direction, width, grid, cur_row_index, cur_col_index)
+    while get_grid_sum(grid)<500:
+        choice = hall_or_room(prev_choice)
+        if choice == "hall":    
+            direction, length, width = generate_hall(prev_direction)
+            grid, cur_row_index, cur_col_index = build_hall(length, direction, width, grid, cur_row_index, cur_col_index)
+        elif choice == "room":
+            width, length = generate_room()
+            grid, cur_row_index, cur_col_index, direction = build_room(width, length, prev_direction, grid, cur_row_index, cur_col_index) 
+            
         prev_direction = direction
+        prev_choice == choice
         
     export_to_xlsx(grid)
+
+def hall_or_room(prev_choice):
+    if prev_choice == "room":
+        return "hall"
+    else:
+        chance = random.randint(1,100)
+        if chance <= 70:
+            return "hall"
+        else:
+            return "room"
     
-def generateHall(prev_direction):
+def generate_room():
+    room_chance = random.randint(1,100)
+    width = 0
+    length = 0
+    if room_chance > 0 and room_chance <= 20:
+        width = 9
+        length = 9
+    elif room_chance > 20 and room_chance <= 80:
+        width = 7
+        length = 7
+    elif room_chance > 80 and room_chance <= 100:
+        width = 5
+        length = 5
+    
+    return width, length
+
+def build_room(width, length, direction, grid, cur_row_index, cur_col_index):
+    if direction == 0:
+        direction = 2
+    base_rows, base_cols = grid.shape
+    half_size = width // 2
+    
+    match direction:
+        case 1:
+            start_r, end_r = cur_row_index - width, cur_row_index
+            start_c, end_c = cur_col_index - half_size, cur_col_index + half_size + 1
+        case 2:        
+            start_r, end_r = cur_row_index - half_size, cur_row_index + half_size + 1
+            start_c, end_c = cur_col_index + 1, cur_col_index + width + 1
+        case 3:
+            start_r, end_r = cur_row_index +1, cur_row_index + width + 1
+            start_c, end_c = cur_col_index - half_size, cur_col_index + half_size + 1
+        case 4:
+            start_r, end_r = cur_row_index - half_size, cur_row_index + half_size + 1
+            start_c, end_c = cur_col_index - width, cur_col_index
+        
+    min_r = min(0, start_r)
+    max_r = max(base_rows, end_r)
+    min_c = min(0, start_c)
+    max_c = max(base_cols, end_c)
+    
+    new_rows = max_r - min_r
+    new_cols = max_c - min_c
+    new_grid = np.zeros((new_rows, new_cols), dtype=object)
+    
+    row_shift = -min_r
+    col_shift = -min_c
+    
+    orig_start_r = 0 + row_shift
+    orig_end_r = base_rows + row_shift
+    orig_start_c = 0 + col_shift
+    orig_end_c = base_cols + col_shift
+    new_grid[orig_start_r:orig_end_r, orig_start_c:orig_end_c] = grid
+    
+    new_grid[start_r + row_shift : end_r + row_shift, 
+            start_c + col_shift : end_c + col_shift] = 1
+    
+    cur_row_index = cur_row_index + row_shift
+    cur_col_index = cur_col_index + col_shift
+    
+    return new_grid, cur_row_index, cur_col_index, direction
+            
+def generate_hall(prev_direction):
     bactrack_direction = 0
     match prev_direction:
         case 0:
@@ -44,7 +123,7 @@ def generateHall(prev_direction):
             width = 2
     return direction, length, width
 
-def buildHall(length, direction, width, grid, cur_row_index, cur_col_index):
+def build_hall(length, direction, width, grid, cur_row_index, cur_col_index):
     if width == 1:
         for i in range(length):
             match direction:
@@ -59,15 +138,15 @@ def buildHall(length, direction, width, grid, cur_row_index, cur_col_index):
             try:
                 if cur_col_index < 0:
                     cur_col_index = 0
-                    grid = expandGrid(grid, direction)
+                    grid = expand_grid(grid, direction)
                 if cur_row_index < 0:
                     cur_row_index=0
-                    grid = expandGrid(grid, direction)
+                    grid = expand_grid(grid, direction)
                             
                 grid[(cur_row_index,cur_col_index)]=1
                 
             except IndexError:
-                grid = expandGrid(grid, direction)
+                grid = expand_grid(grid, direction)
                 grid[(cur_row_index,cur_col_index)]=1
     
     else:
@@ -104,28 +183,28 @@ def buildHall(length, direction, width, grid, cur_row_index, cur_col_index):
             if cur_row_index < 0:
                 cur_row_index=0
                 second_row_index=0
-                grid = expandGrid(grid, direction)
+                grid = expand_grid(grid, direction)
                 
             elif second_row_index < 0:
                 second_row_index = 0
                 cur_row_index = 1
-                grid = expandGrid(grid, 1)
+                grid = expand_grid(grid, 1)
             
             if is_row_invalid(grid,cur_row_index) or is_row_invalid(grid,second_row_index):
-                grid = expandGrid(grid, 3)
+                grid = expand_grid(grid, 3)
                 
             if cur_col_index < 0:
                 cur_col_index = 0
                 second_col_index =0
-                grid = expandGrid(grid, direction)
+                grid = expand_grid(grid, direction)
                 
             elif second_col_index < 0:
                 second_col_index = 0
                 cur_col_index = 1
-                grid = expandGrid(grid, 4)
+                grid = expand_grid(grid, 4)
             
             if is_col_invalid(grid, cur_col_index) or is_col_invalid(grid, second_col_index):
-                grid = expandGrid(grid, 2)                    
+                grid = expand_grid(grid, 2)                    
                 
             grid[(cur_row_index,cur_col_index)]=1
             grid[(second_row_index,second_col_index)]=1
@@ -134,7 +213,7 @@ def buildHall(length, direction, width, grid, cur_row_index, cur_col_index):
                 
     return grid, cur_row_index, cur_col_index
 
-def expandGrid(grid, side):
+def expand_grid(grid, side):
     match side:
         case 1:
             new_row = np.zeros(grid.shape[1], dtype=grid.dtype)
@@ -158,7 +237,7 @@ def is_col_invalid(grid, col_index):
     num_cols = grid.shape[1]
     return not(-num_cols <= col_index <num_cols)
 
-def getgridsum(grid):
+def get_grid_sum(grid):
     is_digit = np.char.isdigit(grid.astype(str))
     sum = grid[is_digit].astype(int).sum()
     return sum
