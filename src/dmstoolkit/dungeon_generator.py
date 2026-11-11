@@ -4,28 +4,57 @@ import openpyxl
 from openpyxl.styles import PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
 from pathlib import Path
+from typing import Literal
 
 def generate_dungeon():
     grid = np.zeros((5,5), dtype=object)
     cur_row_index = 2
     cur_col_index = 2
+    ahead_row_index = 0
+    ahead_col_index = 0
+    left_row_index = 0
+    left_col_index = 0
+    right_row_index = 0
+    right_col_index = 0
     grid[(cur_row_index,cur_col_index)]=1
     prev_direction = 0
     prev_choice = "na"
     
     while get_grid_sum(grid)<500:
+        
         choice = hall_or_room(prev_choice)
+        print(choice)
         if choice == "hall":    
             direction, length, width = generate_hall(prev_direction)
+            if prev_choice == "room":
+                print(f"Current: {cur_row_index},{cur_col_index}")
+                cur_row_index, cur_col_index = get_room_exit(direction, prev_direction, ahead_row_index, ahead_col_index, left_row_index, left_col_index, right_row_index, right_col_index)
+                print(f"New: {cur_row_index},{cur_col_index}")
             grid, cur_row_index, cur_col_index = build_hall(length, direction, width, grid, cur_row_index, cur_col_index)
         elif choice == "room":
-            width, length = generate_room()
-            grid, cur_row_index, cur_col_index, direction = build_room(width, length, prev_direction, grid, cur_row_index, cur_col_index) 
+            size = generate_room()
+            grid, ahead_row_index, ahead_col_index, left_row_index, left_col_index, right_row_index, right_col_index, direction = build_room(size, prev_direction, grid, cur_row_index, cur_col_index) 
             
         prev_direction = direction
-        prev_choice == choice
+        prev_choice = choice
+        #print(choice)
+        #print(cur_row_index, cur_col_index)
         
     export_to_xlsx(grid)
+
+def get_room_exit(direction, prev_direction, ahead_row_index, ahead_col_index, left_row_index, left_col_index, right_row_index, right_col_index):
+    #print(f"Dir {direction}, Prev {prev_direction}")
+    if direction == prev_direction:
+        return ahead_row_index, ahead_col_index
+    if direction == prev_direction - 1:
+        return left_row_index, left_col_index
+    if direction == prev_direction + 1:
+        return right_row_index, right_col_index
+    if direction == 4 and prev_direction == 1:
+        return left_row_index, left_col_index
+    if direction == 1 and prev_direction == 4:
+        return right_row_index, right_col_index
+        
 
 def hall_or_room(prev_choice):
     if prev_choice == "room":
@@ -39,39 +68,35 @@ def hall_or_room(prev_choice):
     
 def generate_room():
     room_chance = random.randint(1,100)
-    width = 0
-    length = 0
+    size = 0
     if room_chance > 0 and room_chance <= 20:
-        width = 9
-        length = 9
+        size = 9
     elif room_chance > 20 and room_chance <= 80:
-        width = 7
-        length = 7
+        size = 7
     elif room_chance > 80 and room_chance <= 100:
-        width = 5
-        length = 5
+        size = 5
     
-    return width, length
+    return size
 
-def build_room(width, length, direction, grid, cur_row_index, cur_col_index):
+def build_room(size, direction, grid, cur_row_index, cur_col_index):
     if direction == 0:
         direction = 2
     base_rows, base_cols = grid.shape
-    half_size = width // 2
+    half_size = size // 2
     
     match direction:
         case 1:
-            start_r, end_r = cur_row_index - width, cur_row_index
+            start_r, end_r = cur_row_index - size, cur_row_index
             start_c, end_c = cur_col_index - half_size, cur_col_index + half_size + 1
         case 2:        
             start_r, end_r = cur_row_index - half_size, cur_row_index + half_size + 1
-            start_c, end_c = cur_col_index + 1, cur_col_index + width + 1
+            start_c, end_c = cur_col_index + 1, cur_col_index + size + 1
         case 3:
-            start_r, end_r = cur_row_index +1, cur_row_index + width + 1
+            start_r, end_r = cur_row_index +1, cur_row_index + size + 1
             start_c, end_c = cur_col_index - half_size, cur_col_index + half_size + 1
         case 4:
             start_r, end_r = cur_row_index - half_size, cur_row_index + half_size + 1
-            start_c, end_c = cur_col_index - width, cur_col_index
+            start_c, end_c = cur_col_index - size, cur_col_index
         
     min_r = min(0, start_r)
     max_r = max(base_rows, end_r)
@@ -94,10 +119,61 @@ def build_room(width, length, direction, grid, cur_row_index, cur_col_index):
     new_grid[start_r + row_shift : end_r + row_shift, 
             start_c + col_shift : end_c + col_shift] = 1
     
-    cur_row_index = cur_row_index + row_shift
-    cur_col_index = cur_col_index + col_shift
+    ahead_row_index = 0
+    ahead_col_index = 0
     
-    return new_grid, cur_row_index, cur_col_index, direction
+    left_row_index = 0
+    left_col_index = 0
+    
+    right_row_index = 0
+    right_col_index = 0
+    
+    match direction:
+        case 1:
+            ahead_row_index = cur_row_index - size
+            ahead_col_index = cur_col_index
+            
+            left_row_index = cur_row_index - (half_size + 1)
+            left_col_index = cur_col_index - half_size
+            
+            right_row_index = cur_row_index - (half_size + 1)
+            right_col_index = cur_col_index + half_size
+        case 2:
+            ahead_row_index = cur_row_index 
+            ahead_col_index = cur_col_index + size
+            
+            left_row_index = cur_row_index - half_size
+            left_col_index = cur_col_index + (half_size + 1)
+            
+            right_row_index = cur_row_index + half_size
+            right_col_index = cur_col_index + (half_size + 1)
+        case 3:
+            ahead_row_index = cur_row_index + size
+            ahead_col_index = cur_col_index
+            
+            left_row_index = cur_row_index + (half_size + 1)
+            left_col_index = cur_col_index + half_size
+            
+            right_row_index = cur_row_index + (half_size + 1)
+            right_col_index = cur_col_index - half_size
+        case 4:
+            ahead_row_index = cur_row_index 
+            ahead_col_index = cur_col_index - size
+            
+            left_row_index = cur_row_index + half_size
+            left_col_index = cur_col_index - (half_size + 1)
+            
+            right_row_index = cur_row_index - half_size
+            right_col_index = cur_col_index - (half_size + 1)           
+    
+    ahead_row_index += row_shift
+    ahead_col_index += col_shift
+    left_row_index += row_shift
+    left_col_index += col_shift
+    right_row_index += row_shift
+    right_col_index += col_shift
+
+    return new_grid, ahead_row_index, ahead_col_index, left_row_index, left_col_index, right_row_index, right_col_index, direction
             
 def generate_hall(prev_direction):
     bactrack_direction = 0
@@ -146,7 +222,10 @@ def build_hall(length, direction, width, grid, cur_row_index, cur_col_index):
                 grid[(cur_row_index,cur_col_index)]=1
                 
             except IndexError:
-                grid = expand_grid(grid, direction)
+                while cur_row_index >= grid.shape[0]:
+                    grid = expand_grid(grid, 3)
+                while cur_col_index >= grid.shape[1]:
+                    grid = expand_grid(grid, 2)
                 grid[(cur_row_index,cur_col_index)]=1
     
     else:
@@ -190,7 +269,7 @@ def build_hall(length, direction, width, grid, cur_row_index, cur_col_index):
                 cur_row_index = 1
                 grid = expand_grid(grid, 1)
             
-            if is_row_invalid(grid,cur_row_index) or is_row_invalid(grid,second_row_index):
+            while is_row_invalid(grid,cur_row_index) or is_row_invalid(grid,second_row_index):
                 grid = expand_grid(grid, 3)
                 
             if cur_col_index < 0:
@@ -203,7 +282,7 @@ def build_hall(length, direction, width, grid, cur_row_index, cur_col_index):
                 cur_col_index = 1
                 grid = expand_grid(grid, 4)
             
-            if is_col_invalid(grid, cur_col_index) or is_col_invalid(grid, second_col_index):
+            while is_col_invalid(grid, cur_col_index) or is_col_invalid(grid, second_col_index):
                 grid = expand_grid(grid, 2)                    
                 
             grid[(cur_row_index,cur_col_index)]=1
