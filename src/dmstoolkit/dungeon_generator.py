@@ -23,13 +23,13 @@ def generate_dungeon():
     while get_grid_sum(grid)<500:
         
         choice = hall_or_room(prev_choice)
-        print(choice)
+        #print(choice)
         if choice == "hall":    
             direction, length, width = generate_hall(prev_direction)
             if prev_choice == "room":
-                print(f"Current: {cur_row_index},{cur_col_index}")
+                #print(f"Current: {cur_row_index},{cur_col_index}")
                 cur_row_index, cur_col_index = get_room_exit(direction, prev_direction, ahead_row_index, ahead_col_index, left_row_index, left_col_index, right_row_index, right_col_index)
-                print(f"New: {cur_row_index},{cur_col_index}")
+                #print(f"New: {cur_row_index},{cur_col_index}")
             grid, cur_row_index, cur_col_index = build_hall(length, direction, width, grid, cur_row_index, cur_col_index)
         elif choice == "room":
             size = generate_room()
