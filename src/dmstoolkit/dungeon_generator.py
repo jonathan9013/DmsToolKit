@@ -4,9 +4,23 @@ import openpyxl
 from openpyxl.styles import PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
 from pathlib import Path
-from typing import Literal
 
-def generate_dungeon():
+def generate_dungeon(
+    target_size: int = 500,
+    hall_percentage: int = 70,
+    room_percentage: int = 30,
+    room_9_percentage: int = 20,
+    room_7_percentage: int = 60,
+    room_5_percentage: int = 20,
+) -> None:
+    validate_generation_options(
+        target_size,
+        hall_percentage,
+        room_percentage,
+        room_9_percentage,
+        room_7_percentage,
+        room_5_percentage,
+    )
     grid = np.zeros((5,5), dtype=object)
     cur_row_index = 2
     cur_col_index = 2
@@ -20,9 +34,9 @@ def generate_dungeon():
     prev_direction = 0
     prev_choice = "na"
     
-    while get_grid_sum(grid)<500:
+    while get_grid_sum(grid) < target_size:
         
-        choice = hall_or_room(prev_choice)
+        choice = hall_or_room(prev_choice, hall_percentage, room_percentage)
         #print(choice)
         if choice == "hall":    
             direction, length, width = generate_hall(prev_direction)
@@ -32,7 +46,7 @@ def generate_dungeon():
                 #print(f"New: {cur_row_index},{cur_col_index}")
             grid, cur_row_index, cur_col_index = build_hall(length, direction, width, grid, cur_row_index, cur_col_index)
         elif choice == "room":
-            size = generate_room()
+            size = generate_room(room_9_percentage, room_7_percentage, room_5_percentage)
             grid, ahead_row_index, ahead_col_index, left_row_index, left_col_index, right_row_index, right_col_index, direction = build_room(size, prev_direction, grid, cur_row_index, cur_col_index) 
             
         prev_direction = direction
@@ -41,6 +55,38 @@ def generate_dungeon():
         #print(cur_row_index, cur_col_index)
         
     export_to_xlsx(grid)
+
+def validate_generation_options(
+    target_size: int,
+    hall_percentage: int,
+    room_percentage: int,
+    room_9_percentage: int,
+    room_7_percentage: int,
+    room_5_percentage: int,
+) -> None:
+    if not isinstance(target_size, int) or isinstance(target_size, bool) or target_size < 1:
+        raise ValueError("target_size must be a positive integer")
+
+    percentages = {
+        "hall_percentage": hall_percentage,
+        "room_percentage": room_percentage,
+        "room_9_percentage": room_9_percentage,
+        "room_7_percentage": room_7_percentage,
+        "room_5_percentage": room_5_percentage,
+    }
+    for name, percentage in percentages.items():
+        if (
+            not isinstance(percentage, int)
+            or isinstance(percentage, bool)
+            or not 0 <= percentage <= 100
+        ):
+            raise ValueError(f"{name} must be an integer between 0 and 100")
+
+    if hall_percentage + room_percentage != 100:
+        raise ValueError("hall_percentage and room_percentage must add up to 100")
+    if room_9_percentage + room_7_percentage + room_5_percentage != 100:
+        raise ValueError("room size percentages must add up to 100")
+
 
 def get_room_exit(direction, prev_direction, ahead_row_index, ahead_col_index, left_row_index, left_col_index, right_row_index, right_col_index):
     #print(f"Dir {direction}, Prev {prev_direction}")
@@ -56,27 +102,26 @@ def get_room_exit(direction, prev_direction, ahead_row_index, ahead_col_index, l
         return right_row_index, right_col_index
         
 
-def hall_or_room(prev_choice):
+def hall_or_room(prev_choice, hall_percentage=70, room_percentage=30):
     if prev_choice == "room":
         return "hall"
     else:
         chance = random.randint(1,100)
-        if chance <= 70:
+        if chance <= hall_percentage:
             return "hall"
-        else:
+        elif chance <= hall_percentage + room_percentage:
             return "room"
+        raise ValueError("hall_percentage and room_percentage must add up to 100")
     
-def generate_room():
+def generate_room(room_9_percentage=20, room_7_percentage=60, room_5_percentage=20):
     room_chance = random.randint(1,100)
-    size = 0
-    if room_chance > 0 and room_chance <= 20:
-        size = 9
-    elif room_chance > 20 and room_chance <= 80:
-        size = 7
-    elif room_chance > 80 and room_chance <= 100:
-        size = 5
-    
-    return size
+    if room_chance <= room_9_percentage:
+        return 9
+    elif room_chance <= room_9_percentage + room_7_percentage:
+        return 7
+    elif room_chance <= room_9_percentage + room_7_percentage + room_5_percentage:
+        return 5
+    raise ValueError("room size percentages must add up to 100")
 
 def build_room(size, direction, grid, cur_row_index, cur_col_index):
     if direction == 0:
