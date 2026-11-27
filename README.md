@@ -19,3 +19,16 @@ dmstoolkit --target-size 300 --hall-percentage 60 --room-percentage 40 --room-9-
 ```
 
 The hall and room percentages must add up to 100, as must the three room-size percentages. `--target-size` must be a positive number of occupied cells.
+
+## Windows executable
+
+To download a standalone Windows executable, open the repository's [Releases page](https://github.com/jonathan9013/DmsToolKit/releases) and download `DmsToolKit.exe` from a release. The executable opens the settings form and does not require Python to be installed.
+
+To build it locally from a clone, install [uv](https://docs.astral.sh/uv/), then run:
+
+```powershell
+uv sync --locked
+uv run pyinstaller --noconfirm --clean --onefile --windowed --name DmsToolKit --paths src src\dmstoolkit\__main__.py
+```
+
+The executable is written to `dist\DmsToolKit.exe`. Publishing a GitHub Release builds the Windows executable automatically and attaches it to that release. Running the build workflow manually makes the executable available as a workflow artifact.
