@@ -12,18 +12,18 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version-file: .python-version
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v10
         with:
           enable-cache: true
       - name: Install locked dependencies
         run: uv sync --locked
       - name: Build standalone GUI executable
         run: uv run pyinstaller --noconfirm --clean --onefile --windowed --name DmsToolKit --paths src src\dmstoolkit\__main__.py
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: DmsToolKit-windows-x64
           path: dist\DmsToolKit.exe
@@ -37,11 +37,11 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: DmsToolKit-windows-x64
           path: dist
       - name: Attach executable to GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$GITHUB_REF_NAME" dist/DmsToolKit.exe --clobber
+        run: gh release upload "$GITHUB_REF_NAME" dist/DmsToolKit.exe --clobber --repo "$GITHUB_REPOSITORY"
